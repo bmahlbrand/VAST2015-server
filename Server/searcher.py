@@ -10,7 +10,6 @@ class SolrSearcher:
     com = None
     
     def __init__(self):
-#         self.solr = pysolr.Solr('http://128.46.137.79:8983/solr/VASTChallenge_com/', timeout=10)
         self.traj = pysolr.Solr('http://128.46.137.79:8983/solr/VASTChallenge_traj/', timeout=10)
         self.com = pysolr.Solr('http://128.46.137.79:8983/solr/VASTChallenge_com/', timeout=10)
         print('init solr connector')
