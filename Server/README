@@ -1,0 +1,22 @@
+Dataset:
+	Communication: id_1, id_2, start_time, end_time, location(0,1,2,3,4,*)
+	Trajectory: id, start_time, end_time, type(0,1,*)
+
+current backend host = 128.46.137.56:8093
+
+url://host/communications [method = GET]
+parameters: 
+	s //start time ex: 2014-06-07T09:43:18Z
+	e //end time
+	loc //amusement park location (0,1,2,3,4,*)
+	id1 //first user ID in communique
+	id2 //second user ID in communique
+
+url://host/trajectories [method = GET]
+parameters:
+	s //start time
+	e //end time
+	id //user's unique ID
+	type //movement or check in (0,1,*)
+
+returns 1,000,000 rows as a hard upper limit on results of query for now
