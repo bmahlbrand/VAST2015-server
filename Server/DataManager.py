@@ -1,70 +1,204 @@
 import FileFunc
 from index_file import parse_com, parse_traj
+from TimeFunc import time_func_python_date_to_solr_date
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
+from array import array
+import traceback
+import pickle
+
+def _getDate(dt):
+	return datetime.strptime(dt, "%Y-%m-%d %H:%M:%S")
 
 class DataManager(object):
-    '''
-    classdocs
-    '''
+	'''
+	classdocs
+	'''
 
-    def __init__(self):
-        '''
-        Constructor
-        '''
-#         self.commTable = FileFunc.
-#         self.trajTable =
-        print("initializing DataManager") 
-        self.communicationFiles = list(["Data/comm-data-Fri.csv", "Data/comm-data-Sat.csv", "Data/comm-data-Sun.csv"])
-        self.trajectoryFiles = list(["Data/park-movement-Fri.csv", "Data/park-movement-Sat.csv", "Data/park-movement-Sun.csv"])
-            
-    def read_communication_data(self):
-        rst = []
-        for filename in self.communicationFiles:
-            with open(filename, encoding="utf-8") as f:
-                next(f)
-                for line in f:
-                    line = line.strip()
-                    rst.append(parse_com(line))
-                f.close()
-        return rst            
-        
-    def read_trajectory_data(self):
-        rst = []
-        for filename in self.trajectoryFiles:
-            with open(filename, encoding="utf-8") as f:
-                next(f)
-                for line in f:
-                    line = line.strip()
-                    rst.append(parse_traj(line))
-                f.close()
-                    
-        return rst
+	def __init__(self):
+		'''
+		Constructor
+		'''
+		print("initializing DataManager...")
+		
+		self.communicationFiles = list(["Data/comm-data-Fri.csv", "Data/comm-data-Sat.csv", "Data/comm-data-Sun.csv"])
+		self.trajectoryFiles = list(["Data/park-movement-Fri.csv", "Data/park-movement-Sat.csv", "Data/park-movement-Sun.csv"])
+		
+		self.commStart = datetime.strptime("2014-6-06T08:03:19Z", "%Y-%m-%dT%H:%M:%SZ")
+		self.trajStart = datetime.strptime("2014-6-06T08:00:16Z", "%Y-%m-%dT%H:%M:%SZ")
 
-    def _compute_seconds(self, timestamp):
-        spl = timestamp.split(" ")
-        date = spl[0]
-        time = spl[1]
-        
-        dateVal = date.split("-")
-        val = time.split(":")
-        
-        secs = 60 * int(val[2]) + 60 * int(val[1]) + int(val[0])
-        
-        return secs
-    
-    def compute_index_from_time_comm(self, time):
-        commStart = "2014-6-06 08:03:19"
-        return self._compute_seconds(commStart) - self._compute_seconds(time)
-    
-    def compute_index_from_time_traj(self, time):
-        trajStart = "2014-6-06 08:00:16"
-        return self._compute_seconds(trajStart) - self._compute_seconds(time)
-    
+		self.commTable = None
+		self.trajTable = None
+		
+		# self.commTable = self.read_communication_data()
+		# self.trajTable = self.read_trajectory_data()
+		
+		# self.load_comm_data()
+		self.load_traj_data()
+
+		print("...DataManager initialized")
+	
+	def merge(self, data1, data2):
+		data = [None] * len(data1)
+
+		for i in range(len(data1)):
+			if data1[i] is not None:
+				data[i] = data1[i]
+			if data2[i] is not None:
+				data[i] = data2[i]
+
+		return data
+
+
+	def load_comm_data(self):
+		for filename in self.communicationFiles:
+			filename = filename + ".pickle"
+			fp = open(filename, 'rb')
+			if self.commTable is None:
+				self.commTable = pickle.load(fp)
+			else:
+				self.commTable = self.merge(self.commTable, pickle.load(fp))
+
+				# self.commTable.extend(pickle.load(fp))
+				
+		print('...communication initialized')
+
+	def load_traj_data(self):
+		for filename in self.trajectoryFiles:
+			filename = filename + ".pickle"
+			fp = open(filename, 'rb')
+			if self.trajTable is None:
+				self.trajTable = pickle.load(fp)
+			else:
+				self.trajTable = self.merge(self.trajTable, pickle.load(fp))
+		
+		print('...trajectory initialized')
+
+	def read_communication_data(self):
+		rst = [None] * 259200
+#         rst = array(228040)
+		for filename in self.communicationFiles:
+			with open(filename, encoding="utf-8") as f:
+				print(filename)
+				next(f)
+				for line in f:
+					line = line.strip()
+					t = parse_com(line)
+					try:
+						if t[0] is None or t[1] is None or t[2] is None or t[3] is None:
+							raise TypeError
+						
+#                         time = _getDate(t[2])
+						
+						time = time_func_python_date_to_solr_date(t[2])
+						
+						i = self.compute_index_from_time_comm(t[2])
+						
+						if i not in rst.keys():
+							
+#                             rst[i] = [t]
+							rst[i]= [{'from': t[0], 'to' : t[1], 'timestamp' : time, 'location' : t[3]}]
+						else:
+#                             rst[i].append(t)
+							rst[i].append({'from': t[0], 'to' : t[1], 'timestamp' : time, 'location' : t[3]})
+					except TypeError:
+						print("failed to build table for communique")
+						print(traceback.format_exc())
+					except IndexError:
+						print("index out of bounds... @" + str(i))
+			
+				with open(filename + ".pickle", 'wb') as fp:
+					pickle.dump(rst, fp)
+				rst = [None] * 259200
+		return rst            
+		
+	def read_trajectory_data(self):
+		rst = [None] * 259200
+		# rst = dict()
+		for filename in self.trajectoryFiles:
+			with open(filename, encoding="utf-8") as f:
+				print(filename)
+				next(f)
+				for line in f:
+					line = line.strip()
+					t = parse_traj(line)
+					try:
+						if t[0] is None or t[1] is None or t[2] is None or t[3] is None or t[4] is None:
+							raise TypeError
+			
+						time = time_func_python_date_to_solr_date(t[1])
+#                         t[1] = time_func_python_date_to_solr_date(t[1])
+						i = self.compute_index_from_time_traj(t[1])
+
+						if i not in rst.keys():
+#                             rst[i] = [t]
+							rst[i] = [{'id' : t[0], 'timestamp' : time, 'type' : t[2], 'x': t[3], 'y': t[4]}]
+						else:
+#                             rst[i].append(t)
+							rst[i].append({'id' : t[0], 'timestamp' : time, 'type' : t[2], 'x': t[3], 'y': t[4]})
+							
+					except TypeError:
+						print("failed to build table for trajectories")
+					except IndexError:
+						print("index out of bounds... @" + str(i))
+				
+				with open(filename + ".pickle", 'wb') as fp:
+					pickle.dump(rst, fp)
+				rst = [None] * 259200
+				# rst = dict()
+					
+		return rst
+
+	def compute_index_from_time_comm(self, time):
+		if type(time) is str:
+			time = datetime.strptime(time, "%Y-%m-%dT%H:%M:%SZ")
+		# time = datetime.strptime(time, "%Y-%m-%dT%H:%M:%SZ")
+		return int((time - self.commStart).total_seconds())
+	
+	def compute_index_from_time_traj(self, time):
+		if type(time) is str:
+			time = datetime.strptime(time, "%Y-%m-%dT%H:%M:%SZ")
+		return int((time - self.trajStart).total_seconds())
+	
+	def collect_range_comm(self, start_time, end_time):
+		s = self.compute_index_from_time_comm(start_time)
+		e = self.compute_index_from_time_comm(end_time)
+		rst = []
+		
+		if s < 0:
+			s = 0
+		if e > 259200:
+			e = 259200  
+		while s < e:
+			if self.commTable[s] is not None:
+				row = self.commTable[s]
+				rst.extend(row)
+			s += 1
+			
+		return rst
+	
+	def collect_range_traj(self, start_time, end_time):
+		s = self.compute_index_from_time_comm(start_time)
+		e = self.compute_index_from_time_comm(end_time)
+		rst = []
+		
+		if s < 0:
+			s = self.compute_index_from_time_comm(self.trajStart)
+		if e > 259200:
+			e = 259200 
+		while s < e:
+			if self.trajTable[s] is not None:
+				row = self.trajTable[s]
+				rst.extend(row)
+			s += 1
+			
+		return rst 
+	
 if __name__ == '__main__':
-    data = DataManager()
-    data.compute_index_from_time()
-    data.read_communication_data()
-    data.read_trajectory_data()
+	data = DataManager()
+	print(data.compute_index_from_time_comm("2014-6-06T08:04:19Z"))
+	print(data.collect_range_comm("2014-6-06T08:04:19Z", "2014-6-06T08:15:19Z"))
+#     data.read_communication_data()
+#     data.read_trajectory_data()
 
-    print("DataManager loaded")
+	print("DataManager initialized")

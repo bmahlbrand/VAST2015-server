@@ -3,9 +3,13 @@ import urllib.parse
 import pdb
 import traceback
 app = Bottle()
+from cherrypy import server
 from searcher import SolrSearcher
+from DataManager import DataManager 
 import TimeFunc
+
 solr = SolrSearcher()
+dataManager = DataManager()
 
 @app.hook('after_request')
 def enable_cors():
@@ -16,6 +20,38 @@ def enable_cors():
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS, GET'
     response.headers['Access-Control-Allow-Headers'] = 'Origin, Accept, Content-Type, X-Requested-With, X-CSRF-Token'
+
+@app.route('/communicationTemporalFilter', method="GET")
+def query():
+    dic = urllib.parse.parse_qs(request.query_string)
+    start_date = None
+    end_date = None
+    
+    for key in dic:
+        if key == 's':
+            start_date = ''.join(dic[key])
+        if key == 'e':
+            end_date = ''.join(dic[key])
+    
+    results = None
+    
+    print('fetching data')
+    try:
+        if start_date is None:
+            start_date = '2014-6-05T08:00:00Z'
+        
+        if end_date is None:
+            end_date = '2014-6-09T23:59:00Z'
+            
+        results = dataManager.collect_range_comm(start_date, end_date)
+    except:
+        print(traceback.format_exc())
+        print("parse error")
+        return json_dumps([]);
+    
+    print('fetching done')
+    response.content_type = 'application/json'
+    return json_dumps(results, indent=2)
 
 @app.route('/communications', method="GET")
 def query():
@@ -76,6 +112,38 @@ def query():
     response.content_type = 'application/json'
     return json_dumps(results, indent=2)
 
+
+@app.route('/trajectoryTemporalFilter', method="GET")
+def query():
+    dic = urllib.parse.parse_qs(request.query_string)
+    start_date = None
+    end_date = None
+    for key in dic:
+        if key == 's':
+            start_date = ''.join(dic[key])
+        if key == 'e':
+            end_date = ''.join(dic[key])
+    
+    results = None
+    
+    print('fetching data')
+    try:
+        if start_date is None:
+            start_date = '2014-6-05T08:00:00Z'
+        
+        if end_date is None:
+            end_date = '2014-6-09T23:59:00Z'
+            
+        results = dataManager.collect_range_traj(start_date, end_date)
+    except:
+        print(traceback.format_exc())
+        print("parse error")
+        return json_dumps([]);
+    
+    print('fetching done')
+    response.content_type = 'application/json'
+    return json_dumps(results, indent=2)
+   
 @app.route('/trajectories', method="GET")
 def query():
     dic = urllib.parse.parse_qs(request.query_string)
@@ -135,4 +203,6 @@ def query():
     response.content_type = 'application/json'
     return json_dumps(results, indent=2)
 
-run(app, host='128.46.137.56', port=8093)
+# run(app, host='128.46.137.56', port=8093)
+# server.start(app, host='localhost', port=8093)
+run(app, host='localhost', port=8093)
