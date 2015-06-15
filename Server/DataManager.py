@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from array import array
 import traceback
 import pickle
+import os
+import json
 
 def _getDate(dt):
 	return datetime.strptime(dt, "%Y-%m-%d %H:%M:%S")
@@ -20,7 +22,7 @@ class DataManager(object):
 		Constructor
 		'''
 		print("initializing DataManager...")
-		
+		#list(["Data/comm-data-test.csv"])
 		self.communicationFiles = list(["Data/comm-data-Fri.csv", "Data/comm-data-Sat.csv", "Data/comm-data-Sun.csv"])
 		self.trajectoryFiles = list(["Data/park-movement-Fri.csv", "Data/park-movement-Sat.csv", "Data/park-movement-Sun.csv"])
 		
@@ -29,10 +31,13 @@ class DataManager(object):
 
 		self.commTable = None
 		self.trajTable = None
+		self.load_tables()
+		# self.commTable = self.read_communication_data()
+		# self.trajTable = self.read_trajectory_data()
 		
-		self.commTable = self.read_communication_data()
-		self.trajTable = self.read_trajectory_data()
-		
+		print("...serializing tables")
+
+		self.serialize_tables()
 		# self.load_comm_data()
 		# self.load_traj_data()
 
@@ -76,7 +81,6 @@ class DataManager(object):
 
 	def read_communication_data(self):
 		rst = [None] * 259200
-#         rst = array(228040)
 		for filename in self.communicationFiles:
 			with open(filename, encoding="utf-8") as f:
 				print(filename)
@@ -95,12 +99,11 @@ class DataManager(object):
 						i = self.compute_index_from_time_comm(t[2])
 						
 						if rst[i] is None:
-							
-#                             rst[i] = [t]
-							rst[i] = list(array('i', [t[0], t[1], i, t[3]]))
+							rst[i] = [t]
+							# rst[i] = list(array('i', [t[0], t[1], i, t[3]]))
 							# rst[i] = [{'from': t[0], 'to' : t[1], 'timestamp' : time, 'location' : t[3]}]
 						else:
-							rst[i].append(array('i', [t[0], t[1], i, t[3]]))
+							rst[i].append(t)
 #                             rst[i].append(t)
 							# rst[i].append({'from': t[0], 'to' : t[1], 'timestamp' : time, 'location' : t[3]})
 					except TypeError:
@@ -116,7 +119,6 @@ class DataManager(object):
 		
 	def read_trajectory_data(self):
 		rst = [None] * 259200
-		# rst = dict()
 		for filename in self.trajectoryFiles:
 			with open(filename, encoding="utf-8") as f:
 				print(filename)
@@ -127,17 +129,19 @@ class DataManager(object):
 					try:
 						if t[0] is None or t[1] is None or t[2] is None or t[3] is None or t[4] is None:
 							raise TypeError
-			
+						if t[2] is 0: #skip movements
+							continue
 						time = time_func_python_date_to_solr_date(t[1])
 #                         t[1] = time_func_python_date_to_solr_date(t[1])
 						i = self.compute_index_from_time_traj(t[1])
 
 						if rst[i] is None:
-#                             rst[i] = [t]
-							rst[i] = list(array('i', [t[0], i, t[2], t[3], t[4]]))
+							rst[i] = [t]
+							# rst[i] = list(array('i', [t[0], i, t[2], t[3], t[4]]))
 							# rst[i] = [{'id' : t[0], 'timestamp' : time, 'type' : t[2], 'x': t[3], 'y': t[4]}]
 						else:
-							rst[i].append(array('i', [t[0], i, t[2], t[3], t[4]]))
+							rst[i].append(t)
+							# rst[i].append(array('i', [t[0], i, t[2], t[3], t[4]]))
 #                             rst[i].append(t)
 							# rst[i].append({'id' : t[0], 'timestamp' : time, 'type' : t[2], 'x': t[3], 'y': t[4]})
 							
@@ -198,6 +202,33 @@ class DataManager(object):
 			
 		return rst 
 	
+	def serialize_tables(self):
+		for row in self.commTable:
+			# print(row)
+			if row is not None:
+				time = datetime.strptime(str(row[0][2]), "%Y-%m-%d %H:%M:%S")
+				ind = self.compute_index_from_time_comm(time)
+				with open("Data/seconds/communication/" + str(ind) + ".json", 'wb') as fp:
+					json.dump(row, fp)
+
+		# for row in self.trajTable:
+		# 	if row is not None:
+		# 		with open("Data/seconds/trajectory" + str(row[1]) + ".pickle", 'wb') as fp:
+		# 			pickle.dump(row, fp)
+
+	def load_tables(self):
+		self.commTable = [None] * 259200
+		for file in os.listdir("Data/seconds/communication/"):
+			with open("Data/seconds/communication/" + file, 'rb') as fp:
+				# fn = os.path.basename(file.name)
+				ind = int(os.path.splitext(file)[0])
+				self.commTable[ind] = pickle.load(fp)
+
+
+
+
+
+
 if __name__ == '__main__':
 	data = DataManager()
 	print(data.compute_index_from_time_comm("2014-6-06T08:04:19Z"))
