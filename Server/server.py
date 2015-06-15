@@ -3,7 +3,7 @@ import urllib.parse
 import pdb
 import traceback
 app = Bottle()
-from cherrypy import server
+
 from searcher import SolrSearcher
 from DataManager import DataManager 
 import TimeFunc
@@ -106,7 +106,7 @@ def query():
     except:
         print(traceback.format_exc())
         print("parse error")
-        return json_dumps([]);
+        return json_dumps([])
     
     print('fetching done')
     response.content_type = 'application/json'
@@ -138,7 +138,7 @@ def query():
     except:
         print(traceback.format_exc())
         print("parse error")
-        return json_dumps([]);
+        return json_dumps([])
     
     print('fetching done')
     response.content_type = 'application/json'
@@ -205,4 +205,4 @@ def query():
 
 # run(app, host='128.46.137.56', port=8093)
 # server.start(app, host='localhost', port=8093)
-run(app, host='localhost', port=8093)
+run(app, host='localhost', port=8000)

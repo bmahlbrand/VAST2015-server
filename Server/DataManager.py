@@ -30,11 +30,11 @@ class DataManager(object):
 		self.commTable = None
 		self.trajTable = None
 		
-		# self.commTable = self.read_communication_data()
-		# self.trajTable = self.read_trajectory_data()
+		self.commTable = self.read_communication_data()
+		self.trajTable = self.read_trajectory_data()
 		
 		# self.load_comm_data()
-		self.load_traj_data()
+		# self.load_traj_data()
 
 		print("...DataManager initialized")
 	
@@ -94,22 +94,24 @@ class DataManager(object):
 						
 						i = self.compute_index_from_time_comm(t[2])
 						
-						if i not in rst.keys():
+						if rst[i] is None:
 							
 #                             rst[i] = [t]
-							rst[i]= [{'from': t[0], 'to' : t[1], 'timestamp' : time, 'location' : t[3]}]
+							rst[i] = list(array('i', [t[0], t[1], i, t[3]]))
+							# rst[i] = [{'from': t[0], 'to' : t[1], 'timestamp' : time, 'location' : t[3]}]
 						else:
+							rst[i].append(array('i', [t[0], t[1], i, t[3]]))
 #                             rst[i].append(t)
-							rst[i].append({'from': t[0], 'to' : t[1], 'timestamp' : time, 'location' : t[3]})
+							# rst[i].append({'from': t[0], 'to' : t[1], 'timestamp' : time, 'location' : t[3]})
 					except TypeError:
 						print("failed to build table for communique")
 						print(traceback.format_exc())
 					except IndexError:
 						print("index out of bounds... @" + str(i))
 			
-				with open(filename + ".pickle", 'wb') as fp:
-					pickle.dump(rst, fp)
-				rst = [None] * 259200
+# 				with open(filename + ".pickle", 'wb') as fp:
+# 					pickle.dump(rst, fp)
+# 				rst = [None] * 259200
 		return rst            
 		
 	def read_trajectory_data(self):
@@ -130,21 +132,23 @@ class DataManager(object):
 #                         t[1] = time_func_python_date_to_solr_date(t[1])
 						i = self.compute_index_from_time_traj(t[1])
 
-						if i not in rst.keys():
+						if rst[i] is None:
 #                             rst[i] = [t]
-							rst[i] = [{'id' : t[0], 'timestamp' : time, 'type' : t[2], 'x': t[3], 'y': t[4]}]
+							rst[i] = list(array('i', [t[0], i, t[2], t[3], t[4]]))
+							# rst[i] = [{'id' : t[0], 'timestamp' : time, 'type' : t[2], 'x': t[3], 'y': t[4]}]
 						else:
+							rst[i].append(array('i', [t[0], i, t[2], t[3], t[4]]))
 #                             rst[i].append(t)
-							rst[i].append({'id' : t[0], 'timestamp' : time, 'type' : t[2], 'x': t[3], 'y': t[4]})
+							# rst[i].append({'id' : t[0], 'timestamp' : time, 'type' : t[2], 'x': t[3], 'y': t[4]})
 							
 					except TypeError:
 						print("failed to build table for trajectories")
 					except IndexError:
 						print("index out of bounds... @" + str(i))
 				
-				with open(filename + ".pickle", 'wb') as fp:
-					pickle.dump(rst, fp)
-				rst = [None] * 259200
+# 				with open(filename + ".pickle", 'wb') as fp:
+# 					pickle.dump(rst, fp)
+# 				rst = [None] * 259200
 				# rst = dict()
 					
 		return rst
