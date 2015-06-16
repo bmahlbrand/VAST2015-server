@@ -33,28 +33,19 @@ class DataManager(object):
 
 		self.commTable = None
 		self.trajTable = None
-# 		self.load_tables()
-# 		self.commTable = self.read_communication_data()
-		self.trajTable = self.read_trajectory_data()
 		
-		print("...serializing tables")
 
-		self.serialize_tables()
+		self.load_tables()
+		# self.commTable = self.read_communication_data()
+		# self.trajTable = self.read_trajectory_data()
+		
+
+
+		# self.serialize_tables()
 # 		self.load_comm_data()
 		# self.load_traj_data()
 
 		print("...DataManager initialized")
-	
-	def merge(self, data1, data2):
-		data = [None] * len(data1)
-
-		for i in range(len(data1)):
-			if data1[i] is not None:
-				data[i] = data1[i]
-			if data2[i] is not None:
-				data[i] = data2[i]
-
-		return data
 
 
 	def load_comm_data(self):
@@ -228,7 +219,7 @@ class DataManager(object):
 			with open("Data/seconds/communication/" + str(i) + ".json", 'wb') as fp:
 # 					pdb.set_trace()
 					fp.write(bytes(json.dumps(chunk), 'UTF-8'))
-	
+
 	def _serialize_traj(self):
 		chunks = self._chunkify(1000, self.trajTable)
 		i = 0
@@ -237,14 +228,15 @@ class DataManager(object):
 				continue
 			i += 1
 			with open("Data/seconds/trajectory/" + str(i) + ".json", 'wb') as fp:
-					pdb.set_trace()
+					# pdb.set_trace()
 					
 					fp.write(bytes(json.dumps(chunk), 'UTF-8'))
 	
 	def serialize_tables(self):
-# 		self._serialize_comm()
+		print("serializing tables...")
+		self._serialize_comm()
 		self._serialize_traj()
-
+		print("...tables serialized")
 
 	def _load_comm(self):
 		print('loading communication data...')
@@ -253,15 +245,37 @@ class DataManager(object):
 		
 		for file in os.listdir("Data/seconds/communication/"):
 			with open("Data/seconds/communication/" + file, 'r') as fp:
-				ind = int(os.path.splitext(file)[0])
-				self.commTable[ind] = json.load(fp)
+				# ind = int(os.path.splitext(file)[0])
+				# self.commTable[ind] = json.load(fp)
+				comm = json.load(fp)
+				for row in comm:
+					if row is None:
+						continue
+					ind = row[0][2]
+					self.commTable[ind] = row
 				
 		print('...communication data loaded')
+	
+	def _load_traj(self):
+		print('loading trajectory data...')
 		
+		self.trajTable = [None] * 259200 
+		
+		for file in os.listdir("Data/seconds/trajectory/"):
+			with open("Data/seconds/trajectory/" + file, 'r') as fp:
+				comm = json.load(fp)
+				for row in comm:
+					if row is None:
+						continue
+					ind = row[0][2]
+					self.trajTable[ind] = row
+				
+		print('...trajectory data loaded')
+
 	def load_tables(self):
 		
 		self._load_comm()
-
+		self._load_traj()
 
 
 
@@ -269,9 +283,3 @@ class DataManager(object):
 
 if __name__ == '__main__':
 	data = DataManager()
-# 	print(data.compute_index_from_time_comm("2014-6-06T08:04:19Z"))
-# 	print(data.collect_range_comm("2014-6-06T08:04:19Z", "2014-6-06T08:15:19Z"))
-#     data.read_communication_data()
-#     data.read_trajectory_data()
-
-	print("DataManager initialized")
