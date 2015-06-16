@@ -8,6 +8,7 @@ import traceback
 import pickle
 import os
 import json
+import pdb
 
 def _getDate(dt):
 	return datetime.strptime(dt, "%Y-%m-%d %H:%M:%S")
@@ -22,7 +23,8 @@ class DataManager(object):
 		Constructor
 		'''
 		print("initializing DataManager...")
-		#list(["Data/comm-data-test.csv"])
+# 		self.communicationFiles = list(["Data/comm-data-test.csv"])
+# 		self.communicationFiles = list(["Data/comm-data-Fri.csv"])
 		self.communicationFiles = list(["Data/comm-data-Fri.csv", "Data/comm-data-Sat.csv", "Data/comm-data-Sun.csv"])
 		self.trajectoryFiles = list(["Data/park-movement-Fri.csv", "Data/park-movement-Sat.csv", "Data/park-movement-Sun.csv"])
 		
@@ -31,14 +33,14 @@ class DataManager(object):
 
 		self.commTable = None
 		self.trajTable = None
-		self.load_tables()
-		# self.commTable = self.read_communication_data()
-		# self.trajTable = self.read_trajectory_data()
+# 		self.load_tables()
+# 		self.commTable = self.read_communication_data()
+		self.trajTable = self.read_trajectory_data()
 		
 		print("...serializing tables")
 
 		self.serialize_tables()
-		# self.load_comm_data()
+# 		self.load_comm_data()
 		# self.load_traj_data()
 
 		print("...DataManager initialized")
@@ -59,6 +61,7 @@ class DataManager(object):
 		for filename in self.communicationFiles:
 			filename = filename + ".pickle"
 			fp = open(filename, 'rb')
+			
 			if self.commTable is None:
 				self.commTable = pickle.load(fp)
 			else:
@@ -72,6 +75,7 @@ class DataManager(object):
 		for filename in self.trajectoryFiles:
 			filename = filename + ".pickle"
 			fp = open(filename, 'rb')
+			
 			if self.trajTable is None:
 				self.trajTable = pickle.load(fp)
 			else:
@@ -88,27 +92,28 @@ class DataManager(object):
 				for line in f:
 					line = line.strip()
 					t = parse_com(line)
+			
 					try:
 						if t[0] is None or t[1] is None or t[2] is None or t[3] is None:
 							raise TypeError
 						
-#                         time = _getDate(t[2])
-						
-						time = time_func_python_date_to_solr_date(t[2])
+# 						time = time_func_python_date_to_solr_date(t[2])
 						
 						i = self.compute_index_from_time_comm(t[2])
 						
 						if rst[i] is None:
-							rst[i] = [t]
+							rst[i] = [[t[0], t[1], i, t[3]]]
 							# rst[i] = list(array('i', [t[0], t[1], i, t[3]]))
 							# rst[i] = [{'from': t[0], 'to' : t[1], 'timestamp' : time, 'location' : t[3]}]
 						else:
-							rst[i].append(t)
+							rst[i].append([t[0], t[1], i, t[3]])
 #                             rst[i].append(t)
 							# rst[i].append({'from': t[0], 'to' : t[1], 'timestamp' : time, 'location' : t[3]})
+					
 					except TypeError:
 						print("failed to build table for communique")
 						print(traceback.format_exc())
+					
 					except IndexError:
 						print("index out of bounds... @" + str(i))
 			
@@ -123,30 +128,34 @@ class DataManager(object):
 			with open(filename, encoding="utf-8") as f:
 				print(filename)
 				next(f)
+				
 				for line in f:
 					line = line.strip()
 					t = parse_traj(line)
+					
 					try:
 						if t[0] is None or t[1] is None or t[2] is None or t[3] is None or t[4] is None:
 							raise TypeError
 						if t[2] is 0: #skip movements
 							continue
-						time = time_func_python_date_to_solr_date(t[1])
+# 						time = time_func_python_date_to_solr_date(t[1])
 #                         t[1] = time_func_python_date_to_solr_date(t[1])
 						i = self.compute_index_from_time_traj(t[1])
 
 						if rst[i] is None:
-							rst[i] = [t]
+# 							rst[i] = [t]
+							rst[i] = [[t[0], i, t[2], t[3], t[4]]]
 							# rst[i] = list(array('i', [t[0], i, t[2], t[3], t[4]]))
 							# rst[i] = [{'id' : t[0], 'timestamp' : time, 'type' : t[2], 'x': t[3], 'y': t[4]}]
 						else:
-							rst[i].append(t)
+							rst[i].append([t[0], i, t[2], t[3], t[4]])
 							# rst[i].append(array('i', [t[0], i, t[2], t[3], t[4]]))
 #                             rst[i].append(t)
 							# rst[i].append({'id' : t[0], 'timestamp' : time, 'type' : t[2], 'x': t[3], 'y': t[4]})
 							
 					except TypeError:
 						print("failed to build table for trajectories")
+					
 					except IndexError:
 						print("index out of bounds... @" + str(i))
 				
@@ -177,6 +186,7 @@ class DataManager(object):
 			s = 0
 		if e > 259200:
 			e = 259200  
+		
 		while s < e:
 			if self.commTable[s] is not None:
 				row = self.commTable[s]
@@ -194,6 +204,7 @@ class DataManager(object):
 			s = self.compute_index_from_time_comm(self.trajStart)
 		if e > 259200:
 			e = 259200 
+		
 		while s < e:
 			if self.trajTable[s] is not None:
 				row = self.trajTable[s]
@@ -202,27 +213,54 @@ class DataManager(object):
 			
 		return rst 
 	
+	def _chunkify(self, n, table):
+		return [table[i:i + n] for i in range(0, len(table), n)]
+		
+	def _serialize_comm(self):
+		chunks = self._chunkify(1000, self.commTable)
+		i = 0
+		for chunk in chunks:
+# 			print(chunk)
+			if all(v is None for v in chunk) is True:
+				continue
+# 			print(chunk[0][0][2])
+			i += 1
+			with open("Data/seconds/communication/" + str(i) + ".json", 'wb') as fp:
+# 					pdb.set_trace()
+					fp.write(bytes(json.dumps(chunk), 'UTF-8'))
+	
+	def _serialize_traj(self):
+		chunks = self._chunkify(1000, self.trajTable)
+		i = 0
+		for chunk in chunks:
+			if all(v is None for v in chunk) is True:
+				continue
+			i += 1
+			with open("Data/seconds/trajectory/" + str(i) + ".json", 'wb') as fp:
+					pdb.set_trace()
+					
+					fp.write(bytes(json.dumps(chunk), 'UTF-8'))
+	
 	def serialize_tables(self):
-		for row in self.commTable:
-			# print(row)
-			if row is not None:
-				time = datetime.strptime(str(row[0][2]), "%Y-%m-%d %H:%M:%S")
-				ind = self.compute_index_from_time_comm(time)
-				with open("Data/seconds/communication/" + str(ind) + ".json", 'wb') as fp:
-					json.dump(row, fp)
+# 		self._serialize_comm()
+		self._serialize_traj()
 
-		# for row in self.trajTable:
-		# 	if row is not None:
-		# 		with open("Data/seconds/trajectory" + str(row[1]) + ".pickle", 'wb') as fp:
-		# 			pickle.dump(row, fp)
 
-	def load_tables(self):
-		self.commTable = [None] * 259200
+	def _load_comm(self):
+		print('loading communication data...')
+		
+		self.commTable = [None] * 259200 
+		
 		for file in os.listdir("Data/seconds/communication/"):
-			with open("Data/seconds/communication/" + file, 'rb') as fp:
-				# fn = os.path.basename(file.name)
+			with open("Data/seconds/communication/" + file, 'r') as fp:
 				ind = int(os.path.splitext(file)[0])
-				self.commTable[ind] = pickle.load(fp)
+				self.commTable[ind] = json.load(fp)
+				
+		print('...communication data loaded')
+		
+	def load_tables(self):
+		
+		self._load_comm()
 
 
 
@@ -231,8 +269,8 @@ class DataManager(object):
 
 if __name__ == '__main__':
 	data = DataManager()
-	print(data.compute_index_from_time_comm("2014-6-06T08:04:19Z"))
-	print(data.collect_range_comm("2014-6-06T08:04:19Z", "2014-6-06T08:15:19Z"))
+# 	print(data.compute_index_from_time_comm("2014-6-06T08:04:19Z"))
+# 	print(data.collect_range_comm("2014-6-06T08:04:19Z", "2014-6-06T08:15:19Z"))
 #     data.read_communication_data()
 #     data.read_trajectory_data()
 
