@@ -160,13 +160,18 @@ class DataManager(object):
 	def compute_index_from_time_comm(self, time):
 		if type(time) is str:
 			time = datetime.strptime(time, "%Y-%m-%dT%H:%M:%SZ")
-		# time = datetime.strptime(time, "%Y-%m-%dT%H:%M:%SZ")
 		return int((time - self.commStart).total_seconds())
+	
+	def compute_time_from_seconds_comm(self, seconds):
+		return self.commStart + datetime.timedelta(seconds=seconds)
 	
 	def compute_index_from_time_traj(self, time):
 		if type(time) is str:
 			time = datetime.strptime(time, "%Y-%m-%dT%H:%M:%SZ")
 		return int((time - self.trajStart).total_seconds())
+	
+	def compute_time_from_seconds_traj(self, seconds):
+		return self.trajStart + datetime.timedelta(seconds=seconds)
 	
 	def collect_range_comm(self, start_time, end_time):
 		s = self.compute_index_from_time_comm(start_time)
@@ -186,6 +191,19 @@ class DataManager(object):
 			
 		return rst
 	
+	def as_user_collection(self, results):
+		
+		rst = dict()
+
+		for row in results:
+			userID = row[0]
+			if rst[userID] is None:
+				rst[userID] = [{'x' : row[3], 'y' : row[4]}]
+			else:
+				rst[userID].append({'x' : row[3], 'y' : row[4]})
+
+		return rst
+
 	def collect_range_traj(self, start_time, end_time):
 		s = self.compute_index_from_time_comm(start_time)
 		e = self.compute_index_from_time_comm(end_time)
@@ -277,9 +295,7 @@ class DataManager(object):
 		self._load_comm()
 		self._load_traj()
 
-
-
-
-
 if __name__ == '__main__':
 	data = DataManager()
+	# tests
+	# http://localhost:8000/communicationTemporalFilter?s=2014-6-06T08:00:00Z&e=2014-6-06T08:10:00Z

@@ -7,6 +7,7 @@ app = Bottle()
 from searcher import SolrSearcher
 from DataManager import DataManager 
 import TimeFunc
+import subprocess
 
 solr = SolrSearcher()
 dataManager = DataManager()
@@ -135,9 +136,21 @@ def query():
             end_date = '2014-6-09T23:59:00Z'
             
         results = dataManager.collect_range_traj(start_date, end_date)
+        # ret = dataManager.as_user_collection(results)
+        # open + create file1
+        # open + create file2
+        # write ret to file1
+        try:
+            #pass file1 and file2 as args
+            subprocess.call()
+        except:
+            print("trajectory clustering failed")
+            print(traceback.format_exc())
+
     except:
-        print(traceback.format_exc())
+        
         print("parse error")
+        print(traceback.format_exc())
         return json_dumps([])
     
     print('fetching done')
