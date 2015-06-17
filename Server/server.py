@@ -8,6 +8,7 @@ from searcher import SolrSearcher
 from DataManager import DataManager 
 import TimeFunc
 import subprocess
+import os
 
 solr = SolrSearcher()
 dataManager = DataManager()
@@ -137,12 +138,13 @@ def query():
             
         results = dataManager.collect_range_traj(start_date, end_date)
         # ret = dataManager.as_user_collection(results)
-        # open + create file1
-        # open + create file2
+        os.path.isfile('lib\\traj_cluster\\target.tra')
+        os.path.isfile('lib\\traj_cluster\\cluster.tra')
         # write ret to file1
         try:
             #pass file1 and file2 as args
-            subprocess.call()
+            #os.chdir('lib\traj_cluster')
+            #subprocess.call(['"TraClus.exe"'], target.tra, cluster.tra, 25, 3)
         except:
             print("trajectory clustering failed")
             print(traceback.format_exc())

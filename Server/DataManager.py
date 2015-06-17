@@ -204,6 +204,14 @@ class DataManager(object):
 
 		return rst
 
+	def write_users_traj(self, results):
+		rstlen = len(results)
+
+		for row in results:
+			row.key() #write id
+			len(row) #write number of movements
+			#write list of coords for user
+
 	def collect_range_traj(self, start_time, end_time):
 		s = self.compute_index_from_time_comm(start_time)
 		e = self.compute_index_from_time_comm(end_time)
