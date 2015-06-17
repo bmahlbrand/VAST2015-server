@@ -23,8 +23,8 @@ class DataManager(object):
 		Constructor
 		'''
 		print("initializing DataManager...")
+		
 # 		self.communicationFiles = list(["Data/comm-data-test.csv"])
-# 		self.communicationFiles = list(["Data/comm-data-Fri.csv"])
 		self.communicationFiles = list(["Data/comm-data-Fri.csv", "Data/comm-data-Sat.csv", "Data/comm-data-Sun.csv"])
 		self.trajectoryFiles = list(["Data/park-movement-Fri.csv", "Data/park-movement-Sat.csv", "Data/park-movement-Sun.csv"])
 		
@@ -34,45 +34,13 @@ class DataManager(object):
 		self.commTable = None
 		self.trajTable = None
 		
-
-		self.load_tables()
-		# self.commTable = self.read_communication_data()
-		# self.trajTable = self.read_trajectory_data()
+# 		self.commTable = self.read_communication_data()
+# 		self.trajTable = self.read_trajectory_data()
 		
-
-
-		# self.serialize_tables()
-# 		self.load_comm_data()
-		# self.load_traj_data()
+# 		self.serialize_tables()
+		self.load_tables()
 
 		print("...DataManager initialized")
-
-
-	def load_comm_data(self):
-		for filename in self.communicationFiles:
-			filename = filename + ".pickle"
-			fp = open(filename, 'rb')
-			
-			if self.commTable is None:
-				self.commTable = pickle.load(fp)
-			else:
-				self.commTable = self.merge(self.commTable, pickle.load(fp))
-
-				# self.commTable.extend(pickle.load(fp))
-				
-		print('...communication initialized')
-
-	def load_traj_data(self):
-		for filename in self.trajectoryFiles:
-			filename = filename + ".pickle"
-			fp = open(filename, 'rb')
-			
-			if self.trajTable is None:
-				self.trajTable = pickle.load(fp)
-			else:
-				self.trajTable = self.merge(self.trajTable, pickle.load(fp))
-		
-		print('...trajectory initialized')
 
 	def read_communication_data(self):
 		rst = [None] * 259200
@@ -107,10 +75,7 @@ class DataManager(object):
 					
 					except IndexError:
 						print("index out of bounds... @" + str(i))
-			
-# 				with open(filename + ".pickle", 'wb') as fp:
-# 					pickle.dump(rst, fp)
-# 				rst = [None] * 259200
+
 		return rst            
 		
 	def read_trajectory_data(self):
@@ -149,11 +114,6 @@ class DataManager(object):
 					
 					except IndexError:
 						print("index out of bounds... @" + str(i))
-				
-# 				with open(filename + ".pickle", 'wb') as fp:
-# 					pickle.dump(rst, fp)
-# 				rst = [None] * 259200
-				# rst = dict()
 					
 		return rst
 
@@ -203,7 +163,7 @@ class DataManager(object):
 				rst[userID].append({'x' : row[3], 'y' : row[4]})
 
 		return rst
-
+	
 	def write_users_traj(self, results):
 		rstlen = len(results)
 
@@ -213,12 +173,12 @@ class DataManager(object):
 			#write list of coords for user
 
 	def collect_range_traj(self, start_time, end_time):
-		s = self.compute_index_from_time_comm(start_time)
-		e = self.compute_index_from_time_comm(end_time)
+		s = self.compute_index_from_time_traj(start_time)
+		e = self.compute_index_from_time_traj(end_time)
 		rst = []
 		
 		if s < 0:
-			s = self.compute_index_from_time_comm(self.trajStart)
+			s = self.compute_index_from_time_traj(self.trajStart)
 		if e > 259200:
 			e = 259200 
 		
@@ -230,6 +190,42 @@ class DataManager(object):
 			
 		return rst 
 	
+	def collect_range_traj_locations(self, start_time, end_time, type):
+		s = self.compute_index_from_time_traj(start_time)
+		e = self.compute_index_from_time_traj(end_time)
+
+		rst = []
+		print(s)
+		if s < 0:
+			s = self.compute_index_from_time_traj(self.trajStart)
+		if e > 259200:
+			e = 259200 
+		
+		if type is '*':
+			while s < e:
+				if self.trajTable[s] is not None:
+					for row in self.trajTable[s]:
+						rst.append([row[3], row[4]])
+				s += 1
+		elif type is '0': #check-in
+			while s < e:
+				if self.trajTable[s] is not None:
+					for row in self.trajTable[s]:
+						print(row)
+						if row[2] is True:
+							print("passed")
+							rst.append([row[3], row[4]])
+				s += 1
+		elif type is '1': #movement
+			while s < e:
+				if self.trajTable[s] is not None:
+					for row in self.trajTable[s]:
+						if row[2] is False:
+							print("passed")
+							rst.append([row[3], row[4]])
+				s += 1
+		return rst
+		
 	def _chunkify(self, n, table):
 		return [table[i:i + n] for i in range(0, len(table), n)]
 		
@@ -244,7 +240,7 @@ class DataManager(object):
 			i += 1
 			with open("Data/seconds/communication/" + str(i) + ".json", 'wb') as fp:
 # 					pdb.set_trace()
-					fp.write(bytes(json.dumps(chunk), 'UTF-8'))
+				fp.write(bytes(json.dumps(chunk), 'UTF-8'))
 
 	def _serialize_traj(self):
 		chunks = self._chunkify(1000, self.trajTable)
@@ -256,11 +252,11 @@ class DataManager(object):
 			with open("Data/seconds/trajectory/" + str(i) + ".json", 'wb') as fp:
 					# pdb.set_trace()
 					
-					fp.write(bytes(json.dumps(chunk), 'UTF-8'))
+				fp.write(bytes(json.dumps(chunk), 'UTF-8'))
 	
 	def serialize_tables(self):
 		print("serializing tables...")
-		self._serialize_comm()
+# 		self._serialize_comm()
 		self._serialize_traj()
 		print("...tables serialized")
 

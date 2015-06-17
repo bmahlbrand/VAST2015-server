@@ -9,7 +9,8 @@ from DataManager import DataManager
 import TimeFunc
 import subprocess
 import os
-
+from lib import kde
+import base64
 solr = SolrSearcher()
 dataManager = DataManager()
 
@@ -114,7 +115,62 @@ def query():
     response.content_type = 'application/json'
     return json_dumps(results, indent=2)
 
+def Base64Encode(ndarray):
+    return json_dumps([str(ndarray.dtype), base64.b64encode(ndarray),ndarray.shape])
 
+#add a optional parameter for check in or movement
+@app.route('/trajKDE', method="GET")
+def query():
+    dic = urllib.parse.parse_qs(request.query_string)
+    start_date = None
+    end_date = None
+    type = None
+    
+    for key in dic:
+        if key == 's':
+            start_date = ''.join(dic[key])
+        if key == 'e':
+            end_date = ''.join(dic[key])
+        if key == 'type':
+            type = ''.join(dic[key])
+            
+    results = None
+    
+    print('fetching data')
+    try:
+        if start_date is None:
+            raise ValueError('You must specify start date')
+#             start_date = '2014-6-05T08:00:00Z'
+        
+        if end_date is None:
+            raise ValueError('You must specify end date')
+#             end_date = '2014-6-09T23:59:00Z'
+        
+        if type is None:
+            raise ValueError('You must specify movement type')
+        
+        rst = dataManager.collect_range_traj_locations(start_date, end_date, type)
+        # print(rst)
+        results = kde.KDE(rst,0,102,0,102)
+        # print(results)
+        results = results.tolist()
+        #convert results to JSON serializable
+    
+    except ValueError as err:
+        print("wrong parameters passed")
+        response.status = 400
+        return err.args
+    
+    except:
+        
+        print("parse error")
+        print(traceback.format_exc())
+        return json_dumps([])
+    
+    print('fetching done')
+    response.content_type = 'application/json'
+    return json_dumps(results, indent=2)
+   
 @app.route('/trajectoryTemporalFilter', method="GET")
 def query():
     dic = urllib.parse.parse_qs(request.query_string)
@@ -137,17 +193,19 @@ def query():
             end_date = '2014-6-09T23:59:00Z'
             
         results = dataManager.collect_range_traj(start_date, end_date)
+        
+#         os.path.isfile('lib\\traj_cluster\\target.tra')
+#         os.path.isfile('lib\\traj_cluster\\cluster.tra')
+        
         # ret = dataManager.as_user_collection(results)
-        os.path.isfile('lib\\traj_cluster\\target.tra')
-        os.path.isfile('lib\\traj_cluster\\cluster.tra')
         # write ret to file1
-        try:
-            #pass file1 and file2 as args
-            #os.chdir('lib\traj_cluster')
-            #subprocess.call(['"TraClus.exe"'], target.tra, cluster.tra, 25, 3)
-        except:
-            print("trajectory clustering failed")
-            print(traceback.format_exc())
+        
+#         try:
+#             #os.chdir('lib\traj_cluster')
+#             #subprocess.call(['"TraClus.exe"'], target.tra, cluster.tra, 25, 3)
+#         except:
+#             print("trajectory clustering failed")
+#             print(traceback.format_exc())
 
     except:
         
@@ -218,6 +276,5 @@ def query():
     response.content_type = 'application/json'
     return json_dumps(results, indent=2)
 
-# run(app, host='128.46.137.56', port=8093)
-# server.start(app, host='localhost', port=8093)
-run(app, host='localhost', port=8000)
+run(app, host='128.46.137.56', port=8093)
+# run(app, host='localhost', port=8000)
