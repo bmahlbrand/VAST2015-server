@@ -17,6 +17,11 @@ parameters:
 	s //start time
 	e //end time
 	id //user's unique ID
-	type //movement or check in (0,1,*)
+	type //movement or check-in (0,1,*)
 
 returns 1,000,000 rows as a hard upper limit on results of query for now
+
+url://host/trajKDE [method = GET]
+	s //start time
+	e //end time
+	type //movement or check-in (0,1,*)

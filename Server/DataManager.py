@@ -35,9 +35,9 @@ class DataManager(object):
 		self.trajTable = None
 		
 # 		self.commTable = self.read_communication_data()
-# 		self.trajTable = self.read_trajectory_data()
+		# self.trajTable = self.read_trajectory_data()
 		
-# 		self.serialize_tables()
+		# self.serialize_tables()
 		self.load_tables()
 
 		print("...DataManager initialized")
@@ -92,8 +92,8 @@ class DataManager(object):
 					try:
 						if t[0] is None or t[1] is None or t[2] is None or t[3] is None or t[4] is None:
 							raise TypeError
-						if t[2] is 0: #skip movements
-							continue
+						# if t[2] is 0: #skip movements
+						# 	continue
 # 						time = time_func_python_date_to_solr_date(t[1])
 #                         t[1] = time_func_python_date_to_solr_date(t[1])
 						i = self.compute_index_from_time_traj(t[1])
@@ -193,37 +193,36 @@ class DataManager(object):
 	def collect_range_traj_locations(self, start_time, end_time, t):
 		s = self.compute_index_from_time_traj(start_time)
 		e = self.compute_index_from_time_traj(end_time)
-
-		rst = []
+		print('starting')
 		print(s)
+		print('ending')
 		print(e)
-		print('---')
+		rst = []
+
 		if s < 0:
 			s = self.compute_index_from_time_traj(self.trajStart)
 		if e > 259200:
 			e = 259200 
-		
+		print('ending')
+		print(e)
 		if t == '*':
 			while s < e:
 				if self.trajTable[s] is not None:
 					for row in self.trajTable[s]:
 						rst.append([row[3], row[4]])
 				s += 1
-		elif t == '0': #check-in
-			while s < e:
-				if self.trajTable[s] is not None:
-					for row in self.trajTable[s]:
-						# print(row)
-						if row[2] == True:
-							# print("passed")
-							rst.append([row[3], row[4]])
-				s += 1
-		elif t == '1': #movement
+		elif t == '0': #movement
 			while s < e:
 				if self.trajTable[s] is not None:
 					for row in self.trajTable[s]:
 						if row[2] == False:
-							# print("passed")
+							rst.append([row[3], row[4]])
+				s += 1
+		elif t == '1': #check-in
+			while s < e:
+				if self.trajTable[s] is not None:
+					for row in self.trajTable[s]:
+						if row[2] == True:
 							rst.append([row[3], row[4]])
 				s += 1
 		return rst
@@ -235,13 +234,10 @@ class DataManager(object):
 		chunks = self._chunkify(1000, self.commTable)
 		i = 0
 		for chunk in chunks:
-# 			print(chunk)
 			if all(v is None for v in chunk) is True:
 				continue
-# 			print(chunk[0][0][2])
 			i += 1
 			with open("Data/seconds/communication/" + str(i) + ".json", 'wb') as fp:
-# 					pdb.set_trace()
 				fp.write(bytes(json.dumps(chunk), 'UTF-8'))
 
 	def _serialize_traj(self):
@@ -252,8 +248,6 @@ class DataManager(object):
 				continue
 			i += 1
 			with open("Data/seconds/trajectory/" + str(i) + ".json", 'wb') as fp:
-					# pdb.set_trace()
-					
 				fp.write(bytes(json.dumps(chunk), 'UTF-8'))
 	
 	def serialize_tables(self):
@@ -269,8 +263,6 @@ class DataManager(object):
 		
 		for file in os.listdir("Data/seconds/communication/"):
 			with open("Data/seconds/communication/" + file, 'r') as fp:
-				# ind = int(os.path.splitext(file)[0])
-				# self.commTable[ind] = json.load(fp)
 				comm = json.load(fp)
 				for row in comm:
 					if row is None:
@@ -292,6 +284,8 @@ class DataManager(object):
 					if row is None:
 						continue
 					ind = row[0][1]
+					if self.trajTable[ind] is not None:
+						print('out')
 					self.trajTable[ind] = row
 				
 		print('...trajectory data loaded')
@@ -305,3 +299,4 @@ if __name__ == '__main__':
 	data = DataManager()
 	# tests
 	# http://localhost:8000/communicationTemporalFilter?s=2014-6-06T08:00:00Z&e=2014-6-06T08:10:00Z
+	# http://localhost:8000/trajKDE?s=2014-6-06T08:00:16Z&e=2014-6-06T09:00:16Z&type=1

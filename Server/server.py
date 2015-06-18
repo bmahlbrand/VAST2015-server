@@ -115,10 +115,7 @@ def query():
     response.content_type = 'application/json'
     return json_dumps(results, indent=2)
 
-def Base64Encode(ndarray):
-    return json_dumps([str(ndarray.dtype), base64.b64encode(ndarray),ndarray.shape])
 
-#add a optional parameter for check in or movement
 @app.route('/trajKDE', method="GET")
 def query():
     dic = urllib.parse.parse_qs(request.query_string)
@@ -150,14 +147,12 @@ def query():
             raise ValueError('You must specify movement type')
         
         rst = dataManager.collect_range_traj_locations(start_date, end_date, t)
-        # print(rst)
+        print("Saw {0} result(s).".format(len(rst)))
         print("...kde initializing")
         results = kde.KDE(rst,0,102,0,102)
         print("kde done...")
-        # print(results)
         results = results.tolist()
-        #convert results to JSON serializable
-    
+            
     except ValueError as err:
         print("wrong parameters passed")
         response.status = 400
@@ -278,5 +273,5 @@ def query():
     response.content_type = 'application/json'
     return json_dumps(results, indent=2)
 
-# run(app, host='128.46.137.56', port=8093)
-run(app, host='localhost', port=8000)
+run(app, host='128.46.137.56', port=8093)
+# run(app, host='localhost', port=8000)
