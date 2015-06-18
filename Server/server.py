@@ -124,7 +124,7 @@ def query():
     dic = urllib.parse.parse_qs(request.query_string)
     start_date = None
     end_date = None
-    type = None
+    t = None
     
     for key in dic:
         if key == 's':
@@ -132,7 +132,7 @@ def query():
         if key == 'e':
             end_date = ''.join(dic[key])
         if key == 'type':
-            type = ''.join(dic[key])
+            t = ''.join(dic[key])
             
     results = None
     
@@ -146,12 +146,14 @@ def query():
             raise ValueError('You must specify end date')
 #             end_date = '2014-6-09T23:59:00Z'
         
-        if type is None:
+        if t is None:
             raise ValueError('You must specify movement type')
         
-        rst = dataManager.collect_range_traj_locations(start_date, end_date, type)
+        rst = dataManager.collect_range_traj_locations(start_date, end_date, t)
         # print(rst)
+        print("...kde initializing")
         results = kde.KDE(rst,0,102,0,102)
+        print("kde done...")
         # print(results)
         results = results.tolist()
         #convert results to JSON serializable
@@ -276,5 +278,5 @@ def query():
     response.content_type = 'application/json'
     return json_dumps(results, indent=2)
 
-run(app, host='128.46.137.56', port=8093)
-# run(app, host='localhost', port=8000)
+# run(app, host='128.46.137.56', port=8093)
+run(app, host='localhost', port=8000)

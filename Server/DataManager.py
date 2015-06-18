@@ -190,38 +190,40 @@ class DataManager(object):
 			
 		return rst 
 	
-	def collect_range_traj_locations(self, start_time, end_time, type):
+	def collect_range_traj_locations(self, start_time, end_time, t):
 		s = self.compute_index_from_time_traj(start_time)
 		e = self.compute_index_from_time_traj(end_time)
 
 		rst = []
 		print(s)
+		print(e)
+		print('---')
 		if s < 0:
 			s = self.compute_index_from_time_traj(self.trajStart)
 		if e > 259200:
 			e = 259200 
 		
-		if type is '*':
+		if t == '*':
 			while s < e:
 				if self.trajTable[s] is not None:
 					for row in self.trajTable[s]:
 						rst.append([row[3], row[4]])
 				s += 1
-		elif type is '0': #check-in
+		elif t == '0': #check-in
 			while s < e:
 				if self.trajTable[s] is not None:
 					for row in self.trajTable[s]:
-						print(row)
-						if row[2] is True:
-							print("passed")
+						# print(row)
+						if row[2] == True:
+							# print("passed")
 							rst.append([row[3], row[4]])
 				s += 1
-		elif type is '1': #movement
+		elif t == '1': #movement
 			while s < e:
 				if self.trajTable[s] is not None:
 					for row in self.trajTable[s]:
-						if row[2] is False:
-							print("passed")
+						if row[2] == False:
+							# print("passed")
 							rst.append([row[3], row[4]])
 				s += 1
 		return rst
@@ -289,7 +291,7 @@ class DataManager(object):
 				for row in comm:
 					if row is None:
 						continue
-					ind = row[0][2]
+					ind = row[0][1]
 					self.trajTable[ind] = row
 				
 		print('...trajectory data loaded')
