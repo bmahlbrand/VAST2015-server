@@ -1,15 +1,17 @@
 from bottle import Bottle, route, run, request, response, static_file, json_dumps
 import urllib.parse
 import pdb
+import pickle
 import traceback
 app = Bottle()
 
 from searcher import SolrSearcher
-from DataManager import DataManager 
+from DataManager import DataManager
 import TimeFunc
 import subprocess
 import os
 from lib import kde
+from lib import kmeans
 import base64
 solr = SolrSearcher()
 dataManager = DataManager()
@@ -273,5 +275,113 @@ def query():
     response.content_type = 'application/json'
     return json_dumps(results, indent=2)
 
-run(app, host='128.46.137.56', port=8093)
+@app.route('/comUserTemporal', method="GET")
+def query():
+    print('requested')
+    dic = urllib.parse.parse_qs(request.query_string)
+    
+    start_date = None
+    end_date = None
+    id = None
+    loc = None
+    
+    for key in dic:
+        if key == 's':
+            start_date = ''.join(dic[key])
+        if key == 'e':
+            end_date = ''.join(dic[key])
+        if key == 'id':
+            id = ''.join(dic[key])
+        if key == 'loc':
+            loc = ''.join(dic[key])
+        
+    results = None
+    
+    print('fetching data')
+    try:
+#     s_converted = TimeFunc.time_func_solr_date_to_python_date('2014-6-06T08:00:00Z')
+#     e_converted = TimeFunc.time_func_solr_date_to_python_date('2014-6-08T23:59:00Z')
+
+        if start_date is None:
+            start_date = '2014-6-05T08:00:00Z'
+        
+        if end_date is None:
+            end_date = '2014-6-09T23:59:00Z'
+                   
+        if id is None or id is '*':
+            raise ValueError('You must specify an id')
+        
+        if loc is None:
+            loc = '*'
+        
+        results = solr.query_com_ids(id.split(), start_date, end_date, loc)
+        
+    except ValueError as err:
+        print("wildcard passed")
+        response.status = 400
+        return err.args
+    
+    except:
+        print(traceback.format_exc())
+        print("parse error")
+        return json_dumps([]);
+    
+    print('fetching done')
+    response.content_type = 'application/json'
+    return json_dumps(results, indent=2)
+
+@app.route('/kmeans', method="GET")
+def query():
+    print('requested')
+    dic = urllib.parse.parse_qs(request.query_string)
+    
+    start_date = None
+    end_date = None
+    
+    for key in dic:
+        if key == 's':
+            start_date = ''.join(dic[key])
+        if key == 'e':
+            end_date = ''.join(dic[key])
+        
+    results = None
+    
+    print('fetching data')
+    try:
+#     s_converted = TimeFunc.time_func_solr_date_to_python_date('2014-6-06T08:00:00Z')
+#     e_converted = TimeFunc.time_func_solr_date_to_python_date('2014-6-08T23:59:00Z')
+
+        if start_date is None:
+            start_date = '2014-6-05T08:00:00Z'
+        
+        if end_date is None:
+            end_date = '2014-6-09T23:59:00Z'
+
+        date_str = None
+        
+        if start_date.startswith("2014-06-06"):
+            date_str = "friday"
+        elif start_date.startswith("2014-06-07"):
+            date_str = "saturday"
+        elif start_date.startswith("2014-06-08"):
+            date_str = "sunday"
+        
+        rst = solr.query_traj_checkin_kde(start_date, end_date)
+        results = kmeans.kmeans(date_str, rst)
+        
+    except ValueError as err:
+        print("wildcard passed")
+        response.status = 400
+        return err.args
+    
+    except:
+        print(traceback.format_exc())
+        print("parse error")
+        return json_dumps([]);
+    
+    print('fetching done')
+    response.content_type = 'application/json'
+    return json_dumps(results, indent=2)
+
+run(app, host='128.46.137.79', port=8093)
 # run(app, host='localhost', port=8000)

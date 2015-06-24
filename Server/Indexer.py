@@ -21,7 +21,8 @@ class SolrIndexer():
                         "time" : t[1],
                         "x" : t[3],
                         "y" : t[4],
-                        "type" : t[2]
+                        "type" : t[2],
+                        'duration': t[5]
                     })
 
                 self.solr.add(arr)
