@@ -9,7 +9,9 @@ import pickle
 import os
 import json
 import pdb
-
+from itertools import islice
+from math import ceil
+import json
 def _getDate(dt):
 	return datetime.strptime(dt, "%Y-%m-%d %H:%M:%S")
 
@@ -26,6 +28,7 @@ class DataManager(object):
 		
 # 		self.communicationFiles = list(["Data/comm-data-test.csv"])
 		self.communicationFiles = list(["Data/comm-data-Fri.csv", "Data/comm-data-Sat.csv", "Data/comm-data-Sun.csv"])
+# 		self.trajectoryFiles = list(["Data/park-movement-test.csv"])
 		self.trajectoryFiles = list(["Data/park-movement-Fri.csv", "Data/park-movement-Sat.csv", "Data/park-movement-Sun.csv"])
 		
 		self.commStart = datetime.strptime("2014-6-06T08:03:19Z", "%Y-%m-%dT%H:%M:%SZ")
@@ -33,12 +36,13 @@ class DataManager(object):
 
 		self.commTable = None
 		self.trajTable = None
+		self.movementTable = None
 		
-# 		self.commTable = self.read_communication_data()
-		# self.trajTable = self.read_trajectory_data()
-		
-		# self.serialize_tables()
+# 		self.build_index()
+
 		self.load_tables()
+# 		self.movementTable = self._index_movement(5)
+# 		self._serialize_movements()
 
 		print("...DataManager initialized")
 
@@ -193,18 +197,14 @@ class DataManager(object):
 	def collect_range_traj_locations(self, start_time, end_time, t):
 		s = self.compute_index_from_time_traj(start_time)
 		e = self.compute_index_from_time_traj(end_time)
-		print('starting')
-		print(s)
-		print('ending')
-		print(e)
+
 		rst = []
 
 		if s < 0:
 			s = self.compute_index_from_time_traj(self.trajStart)
 		if e > 259200:
 			e = 259200 
-		print('ending')
-		print(e)
+
 		if t == '*':
 			while s < e:
 				if self.trajTable[s] is not None:
@@ -229,8 +229,10 @@ class DataManager(object):
 		
 	def _chunkify(self, n, table):
 		return [table[i:i + n] for i in range(0, len(table), n)]
-		
+	
 	def _serialize_comm(self):
+		print("serializing communications...")
+
 		chunks = self._chunkify(1000, self.commTable)
 		i = 0
 		for chunk in chunks:
@@ -239,8 +241,13 @@ class DataManager(object):
 			i += 1
 			with open("Data/seconds/communication/" + str(i) + ".json", 'wb') as fp:
 				fp.write(bytes(json.dumps(chunk), 'UTF-8'))
-
+		
+		print("...communications serialized")
+		
+	#all trajectory movement/check-in
 	def _serialize_traj(self):
+		print("serializing trajectories...")
+		
 		chunks = self._chunkify(1000, self.trajTable)
 		i = 0
 		for chunk in chunks:
@@ -249,13 +256,37 @@ class DataManager(object):
 			i += 1
 			with open("Data/seconds/trajectory/" + str(i) + ".json", 'wb') as fp:
 				fp.write(bytes(json.dumps(chunk), 'UTF-8'))
-	
+				
+		print("...trajectories serialized")
+		
+	#index for sampled movement of groups
+	def _serialize_movements(self):
+		print("serializing movements...")
+		
+		chunks = self._chunkify(1000, self.movementTable)
+		i = 0
+		for chunk in chunks:
+			if all(v is None for v in chunk) is True:
+				continue
+			i += 1
+			with open("Data/seconds/movement/" + str(i) + ".json", 'wb') as fp:
+				fp.write(bytes(json.dumps(chunk), 'UTF-8'))
+		
+		print("...movements serialized")
+		
 	def serialize_tables(self):
 		print("serializing tables...")
-# 		self._serialize_comm()
+		self._serialize_comm()
 		self._serialize_traj()
+		self._serialize_movements()
 		print("...tables serialized")
-
+			
+	def build_index(self):
+		self.commTable = self.read_communication_data()
+		self.trajTable = self.read_trajectory_data()
+		self.movementTable = self._index_movement(5)
+		self.serialize_tables()
+		
 	def _load_comm(self):
 		print('loading communication data...')
 		
@@ -284,16 +315,159 @@ class DataManager(object):
 					if row is None:
 						continue
 					ind = row[0][1]
-					if self.trajTable[ind] is not None:
-						print('out')
 					self.trajTable[ind] = row
 				
 		print('...trajectory data loaded')
-
-	def load_tables(self):
+	
+	def _load_movements(self):
+		print('loading movement data...')
 		
+		self.movementTable = [None] * 259200 
+		
+		for file in os.listdir("Data/seconds/movement/"):
+			with open("Data/seconds/movement/" + file, 'r') as fp:
+				comm = json.load(fp)
+				for row in comm:
+					if row is None:
+						continue
+					ind = row[0][1]
+					self.movementTable[ind] = row
+		
+		print('...movement data loaded')
+		
+	def load_tables(self):
 		self._load_comm()
 		self._load_traj()
+		self._load_movements()
+		
+	def _sample_movement(self, movements, sampleRate):
+		l = len(movements) 
+		k = ceil(l / (sampleRate + 1))
+		
+		i = k
+		rst = []
+		
+		while i < l:
+			rst.append(movements[i])
+			i += k
+			
+		return rst
+	
+	def _index_movement(self, sampleRate):
+		print('indexing user movements...')
+		
+		rst = {}
+
+		for entry in self.trajTable:
+			
+			if entry is None:
+				continue
+			
+			for row in entry:
+				userID = row[0]
+
+				if userID not in rst.keys():
+					rst[userID] = [[row[0], row[1], row[2], row[3], row[4]]]
+				else:
+					rst[userID].append([row[0], row[1], row[2], row[3], row[4]])
+		
+		print('mapped to users')
+		
+		ret = {}
+		
+		for id, user in rst.items():
+			user_range = []
+			seenCheckpoint = False
+			
+			for movement in user:
+				if seenCheckpoint is False and movement[2] is True:
+					seenCheckpoint = True
+					
+				elif seenCheckpoint is True and movement[2] is True:
+					seenCheckpoint = False
+					
+					if id not in ret.keys():
+						#add to array here
+						ret[id] = self._sample_movement(user_range, sampleRate)
+					else:	
+						ret[id].extend(self._sample_movement(user_range, sampleRate))
+					user_range = []
+				else:
+					user_range.append([movement[0], movement[1], movement[3], movement[4]])
+		
+		print("between check-in points sampled")
+		
+		timeTable = [None] * 259200 
+		
+		for row in ret.values():
+			for entry in row: 
+				timeInd = entry[1]
+				if timeTable[timeInd] is None:
+					timeTable[timeInd] = [entry]
+				else:
+					timeTable[timeInd].append(entry)
+			
+		print('...user movements indexed')
+		return timeTable
+
+	def write_movements(self, data):
+		
+		with open("lib/traj_cluster/target.tra", 'wb') as fp:
+
+			fp.writelines("2") #dimensions
+			fp.writelines(str(len(data)))
+			lines = []
+			i = 0
+			
+			for user in data:
+				coords = ''
+				
+				for movements in user:
+					coords += movements[1] + " " + movements[2]
+				
+				lines.append(str(i) + ' ' + str(len(user) + coords))
+				i += 1
+			fp.writelines(lines)
+				
+				
+		
+	def collect_range_group_traj(self, start_time, end_time, user_group, width, height):
+		if height is None:
+			height = 100
+		if width is None:
+			width = 100
+			
+		xScale = width / 100
+		yScale = height / 100
+		
+		s = self.compute_index_from_time_traj(start_time)
+		e = self.compute_index_from_time_traj(end_time)
+		
+		rst = {}
+		
+		if user_group == '*':
+			while s < e:
+				if self.movementTable[s] is not None:
+					for row in self.movementTable[s]:
+						userID = row[0]
+		
+						if userID not in rst.keys():
+							rst[userID] = [[row[0], row[2] * xScale, row[3] * yScale]]
+						else:
+							rst[userID].append([row[0], row[2] * xScale, row[3] * yScale])
+				s += 1			
+		else:
+			while s < e:
+				if self.movementTable[s] is not None:
+					for row in self.movementTable[s]:
+						userID = row[0]
+						if row[0] in user_group:
+							if userID not in rst.keys():
+								rst[userID] = [[row[0], row[2] * xScale, row[3] * yScale]]
+							else:
+								rst[userID].append([row[0], row[2] * xScale, row[3] * yScale])
+				s += 1
+		return rst
 
 if __name__ == '__main__':
 	data = DataManager()
