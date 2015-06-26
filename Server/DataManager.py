@@ -12,6 +12,7 @@ import pdb
 from itertools import islice
 from math import ceil
 import json
+
 def _getDate(dt):
 	return datetime.strptime(dt, "%Y-%m-%d %H:%M:%S")
 
@@ -168,14 +169,6 @@ class DataManager(object):
 
 		return rst
 	
-	def write_users_traj(self, results):
-		rstlen = len(results)
-
-		for row in results:
-			row.key() #write id
-			len(row) #write number of movements
-			#write list of coords for user
-
 	def collect_range_traj(self, start_time, end_time):
 		s = self.compute_index_from_time_traj(start_time)
 		e = self.compute_index_from_time_traj(end_time)
@@ -414,23 +407,23 @@ class DataManager(object):
 		
 		with open("lib/traj_cluster/target.tra", 'wb') as fp:
 
-			fp.writelines("2") #dimensions
-			fp.writelines(str(len(data)))
+			fp.write(bytes("2" + '\n', 'UTF-8')) #dimensions
+			fp.write(bytes(str(len(data)) + '\n', 'UTF-8'))
 			lines = []
 			i = 0
-			
+# 			print(data)
 			for user in data:
 				coords = ''
 				
 				for movements in user:
-					coords += movements[1] + " " + movements[2]
+					coords += ' ' + str(movements[1]) + ' ' + str(movements[2])
 				
-				lines.append(str(i) + ' ' + str(len(user) + coords))
+				lines.append(str(i) + ' ' + str(len(user)) + coords)	
 				i += 1
-			fp.writelines(lines)
-				
-				
-		
+			
+			for line in lines:
+				fp.write(bytes(line + '\n', 'UTF-8'))
+
 	def collect_range_group_traj(self, start_time, end_time, user_group, width, height):
 		if height is None:
 			height = 100
@@ -461,16 +454,18 @@ class DataManager(object):
 				if self.movementTable[s] is not None:
 					for row in self.movementTable[s]:
 						userID = row[0]
-						if row[0] in user_group:
+						if userID in user_group:
+							print('found')
 							if userID not in rst.keys():
 								rst[userID] = [[row[0], row[2] * xScale, row[3] * yScale]]
 							else:
 								rst[userID].append([row[0], row[2] * xScale, row[3] * yScale])
 				s += 1
-		return rst
+		return rst.values()
 
 if __name__ == '__main__':
 	data = DataManager()
+	
 	# tests
 	# http://localhost:8000/communicationTemporalFilter?s=2014-6-06T08:00:00Z&e=2014-6-06T08:10:00Z
 	# http://localhost:8000/trajKDE?s=2014-6-06T08:00:16Z&e=2014-6-06T09:00:16Z&type=1

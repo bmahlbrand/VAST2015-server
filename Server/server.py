@@ -13,6 +13,8 @@ import os
 from lib import kde
 from lib import kmeans
 import base64
+import sys
+
 solr = SolrSearcher()
 dataManager = DataManager()
 
@@ -290,23 +292,41 @@ def query():
         
         if end_date is None:
             end_date = '2014-6-09T23:59:00Z'
-                    
+        
+        if user_group is None:
+            raise ValueError('You must specify user_group as "*" or "id1,id2,id3,...idn"')
+        
+        if user_group is not '*':
+            user_group = [int(id) for id in user_group.split(',')]
+            
+        print(user_group)
         results = dataManager.collect_range_group_traj(start_date, end_date, user_group, width, height)
         dataManager.write_movements(results)
-        
+        print('input written...')
 #         os.path.isfile('lib\\traj_cluster\\target.tra')
 #         os.path.isfile('lib\\traj_cluster\\cluster.tra')
         
+        if sys.platform.startswith("win"):
+            import ctypes
+            SEM_NOGPFAULTERRORBOX = 0x0002 # From MSDN
+            ctypes.windll.kernel32.SetErrorMode(SEM_NOGPFAULTERRORBOX);
+            CREATE_NO_WINDOW = 0x08000000    # From Windows API
+            subprocess_flags = CREATE_NO_WINDOW
+        else:
+            subprocess_flags = 0
+            
+        print('...clustering')
         try:
+            cwd = os.getcwd()
             os.chdir("lib/traj_cluster")
             subprocess.call(["TraClus.exe", "target.tra", "cluster.tra", str(25), str(3)])
-            os.chdir("../..")
+            os.chdir(cwd)
+            
         except:
             print("trajectory clustering failed")
             print(traceback.format_exc())
             
     except ValueError as err:
-        print("wildcard passed")
         response.status = 400
         return err.args
     
@@ -316,8 +336,9 @@ def query():
         return json_dumps([]);
     
     print('fetching done')
-    response.content_type = 'application/json'
-    return json_dumps(results, indent=2)
+#     response.content_type = 'application/json'
+    return static_file("cluster.tra", "lib/traj_cluster")
+#     return json_dumps(results, indent=2)
 
 
 @app.route('/comUserTemporal', method="GET")
