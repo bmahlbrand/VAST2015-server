@@ -25,3 +25,13 @@ url://host/trajKDE [method = GET]
 	s //start time
 	e //end time
 	type //movement or check-in (0,1,*)
+
+url://host/groupTrajectories [method = GET]
+parameters:
+REQUIRED:
+	s //start time
+	e //end time
+	user_group //user's ids ("id1,id2,id3,...,idn", *)
+OPTIONAL:
+        height //pixel height, default 100
+        width //pixel width, default 100
