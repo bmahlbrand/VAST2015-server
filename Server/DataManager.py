@@ -455,7 +455,6 @@ class DataManager(object):
 					for row in self.movementTable[s]:
 						userID = row[0]
 						if userID in user_group:
-							print('found')
 							if userID not in rst.keys():
 								rst[userID] = [[row[0], row[2] * xScale, row[3] * yScale]]
 							else:
