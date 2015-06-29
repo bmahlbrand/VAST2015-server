@@ -1,1 +1,10 @@
 *.pyc
+Server/Data/comm-data-Fri.csv
+Server/Data/comm-data-Sat.csv
+Server/Data/comm-data-Sun.csv
+Server/Data/comm-data-test.csv
+Server/Data/park-movement-Fri.csv
+Server/Data/park-movement-Sat.csv
+Server/Data/park-movement-Sun.csv
+Server/Data/park-movement-test.csv
+*.tra
